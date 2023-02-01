@@ -11,21 +11,27 @@ const addArray = e => {
 const addMensaje = e => {
     fecha = new Date().toLocaleDateString()
     hora = new Date().toLocaleTimeString()
-    const nombre = document.querySelector('#name').value; const apellido = document.querySelector('#lastName').value; const edad = document.querySelector('#edad').value; const alias = document.querySelector('#alias').value
+    const nombre = document.querySelector('#name').value
+    const apellido = document.querySelector('#lastName').value
+    const edad = document.querySelector('#edad').value
+    const alias = document.querySelector('#alias').value
+    const mensaje = document.querySelector('#mensaje').value
+    const id = nombre.length + apellido.length + parseInt(edad)
     const author = {
         nombre: nombre,
         apellido: apellido,
         edad: edad,
-        alias: alias
+        alias: alias,
+        id: String(id)
     }
-    const mensaje = document.querySelector('#mensaje').value
     const comentario = {
+        author: author,
         hora: hora,
         fecha: fecha,
         mensaje: mensaje
     }
 
-    socket.emit('newMensaje', { author: author, mensaje: comentario })
+    socket.emit('newMensaje', comentario)
     return false
 }
 
@@ -42,16 +48,40 @@ const render = array => {
     document.querySelector('#table').scrollTop = document.querySelector('#table').scrollHeight
 }
 
-const rendermsg = archivo => {
-    const html = archivo.map(elem => {
+
+const rendermsg = data => {
+    
+    const author = new normalizr.schema.Entity('author', {}, { idAttribute: 'alias' })
+    const comentario = new normalizr.schema.Entity('comentario', {
+        author: author
+    })
+    const comentarios = new normalizr.schema.Entity('comentarios', {
+        comentarios: [comentario]
+    })
+
+    const denormalizado = normalizr.denormalize(data.result, comentarios, data.entities)
+    const normZize = JSON.stringify(data).length
+    const denormZize = JSON.stringify(denormalizado).length
+    let porcentaje = parseInt((normZize*100)/denormZize)
+
+    console.log('Tamaño normalizado: ',normZize)
+    console.log('Tamaño denormalizado: ',denormZize)
+    console.log('Compresion del ',porcentaje,'%')
+
+    const html = denormalizado.comentarios.map(elem => {
         return (`<div>
-        <b style='color:blue'>${elem.author.alias}</b></br>
-        <a style='color:#B8B8B9'>${elem.mensaje.hora}</a>
-        <a>${elem.mensaje.mensaje}</a>
-        </div>`)
+                <b style='color:blue'>${elem.author.alias}</b></br>
+                <a style='color:#B8B8B9'>${elem.hora}</a>
+                <a>${elem.mensaje}</a>
+                </div>`)
     }).join(" ")
+    const compresion = `<div>
+    <b style="text-align:left; margin-left:200px">Compresion del ${porcentaje}%</b></br>
+    </div>`
+
     document.querySelector('#mensajes').innerHTML = html
     document.querySelector('#chat').scrollTop = document.querySelector('#chat').scrollHeight
+    document.querySelector('#compresion').innerHTML = compresion
 }
 
 

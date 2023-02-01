@@ -1,44 +1,19 @@
-// const knex = require('knex')
-// const { option } = require('../configKnex/config.js')
-
-// class Mensajes {
-//     constructor(config, tabla) {
-//         this.knex = knex(config)
-//         this.table = tabla
-//         this.crearTable()
-//     }
-
-//     async save(obj) {
-//         try {
-//             return await this.knex(this.table).insert(obj)
-//         }
-//         catch (error) { console.log(error) }
-//     }
-
-//     async getAll() {
-//         try {
-//             const array =  await this.knex.from(this.table).select('*')
-//             return array
-//         }
-//         catch (error) { console.log(error) }
-//     }
-
-//     async crearTable() {
-//         await this.knex.schema.hasTable('mensajes').then(async (exists) => {
-//             if (!exists) {
-//                 await this.knex.schema.createTable('mensajes', table => {
-//                     table.date('fecha')
-//                     table.date("hora")
-//                     table.string('mensaje')
-//                     table.json('author')
-//                 })
-//                     .then(() => console.log('BD creada'))
-//                     .catch((error) => { console.log(error); throw error })
-//             }
-//         })
-//     }
-// }
 const fs = require('fs')
+const normalizr = require('normalizr')
+
+let datos = {
+    id: "1000",
+    comentarios: [
+    ]
+}
+
+const author = new normalizr.schema.Entity('author', {}, { idAttribute: 'alias' })
+const comentario = new normalizr.schema.Entity('comentario', {
+    author: author
+})
+const comentarios = new normalizr.schema.Entity('comentarios', {
+    comentarios: [comentario]
+})
 
 class Mensajes {
     constructor(ruta, id = 1) {
@@ -49,13 +24,10 @@ class Mensajes {
     async save(obj) {
         try {
             const contArchivo = await this.getAll()
-            if (contArchivo.length !== 0) {
-                this.id++
-                await fs.promises.writeFile(this.ruta, JSON.stringify([...contArchivo, { ...obj, id: this.id }], null, 2), 'utf-8')
-            } else {
-                await fs.promises.writeFile(this.ruta, JSON.stringify([{ ...obj, id: this.id }]), 'utf-8')
-            }
-            return this.id
+            obj.id = String(this.id)
+            contArchivo.push(obj)
+            const json = JSON.stringify(contArchivo, null, 2)
+            await fs.promises.writeFile(this.ruta, json, 'utf-8')
         }
         catch (error) {
             console.log(error)
@@ -66,12 +38,18 @@ class Mensajes {
         try {
             let contenido = await fs.promises.readFile(this.ruta, 'utf-8')
             let contParse = await JSON.parse(contenido)
-            if (contParse.length !== 0) { contParse.map(elem => { if (elem.id > this.id) { this.id = elem.id } }) }
+            if (contParse.length !== 0) { contParse.map(elem => { if (parseInt(elem.id) >= this.id) { this.id = parseInt(elem.id) + 1 } }) }
             return contParse
         }
         catch (error) {
             console.log(error)
         }
+    }
+
+    async normalizar(obj) {
+        datos.comentarios = await this.getAll()
+        const normalizado = normalizr.normalize(datos, comentarios)
+        return normalizado
     }
 }
 
